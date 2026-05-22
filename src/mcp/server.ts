@@ -105,7 +105,7 @@ export function createMcpServer (): McpServer {
         'Use the id from discover. The input_schema shows all accepted fields in ' +
         'snake_case (path params, query params, body params combined).',
       inputSchema: z.object({
-        id: z.string().describe('Dot-path command ID as returned by discover (e.g. "stack.es.search").'),
+        id: z.string().describe('Dot-path command ID as returned by discover (e.g. "es.search").'),
       }),
     },
     async (args) => {
@@ -124,7 +124,7 @@ export function createMcpServer (): McpServer {
         'Use dry_run=true to validate inputs and inspect the resolved HTTP request without executing. ' +
         'Credentials are read from the configured elastic context — never pass credentials in input.',
       inputSchema: z.object({
-        id: z.string().describe('Dot-path command ID (e.g. "stack.es.search").'),
+        id: z.string().describe('Dot-path command ID (e.g. "es.search").'),
         input: z.record(z.string(), z.unknown()).optional().describe(
           'Command input using snake_case keys from the man schema.'
         ),

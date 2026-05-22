@@ -412,9 +412,14 @@ discover → man → exec
 ```
 
 1. **`discover`** — find commands matching a surface/keyword (e.g. `surface: "es"`, `query: "search"`).
-2. **`man`** — fetch the schema for the chosen command ID (e.g. `id: "stack.es.search"`).
+2. **`man`** — fetch the schema for the chosen command ID (e.g. `id: "es.search"`).
 3. **`exec`** — run the command with input in snake_case keys, or pass `dry_run: true` to inspect the
    resolved HTTP request first.
+
+> **Policy entries use `stack.` prefix.** Command-policy rules in your config file
+> (`commands.allowed` / `commands.blocked`) still use the CLI dot-path form with the
+> `stack.` prefix (e.g. `stack.es.*`, `stack.kb.data-views.*`). These rules apply to
+> both the CLI and the MCP server.
 
 ### Transport modes
 

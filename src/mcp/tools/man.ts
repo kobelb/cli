@@ -30,7 +30,7 @@ import type { JsonValue } from '../../factory.ts'
 
 /** Input for the `man` tool. */
 export interface ManInput {
-  /** Dot-path ID as returned by `discover` (e.g. `stack.es.indices.create`). */
+  /** Dot-path ID as returned by `discover` (e.g. `es.indices.create`). */
   id: string
 }
 

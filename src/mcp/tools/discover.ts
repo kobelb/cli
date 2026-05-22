@@ -10,7 +10,7 @@
  * (to read the schema) and `exec` (to invoke a command).
  */
 
-import { getRegistry } from '../registry.ts'
+import { getRegistry, toPolicyId } from '../registry.ts'
 import type { RegistryEntry, Surface } from '../registry.ts'
 import { isCommandAllowed } from '../../factory.ts'
 import type { CommandPolicy } from '../../config/types.ts'
@@ -85,7 +85,7 @@ export function discover (input: DiscoverInput, policy?: CommandPolicy): Discove
       const haystack = `${entry.id} ${entry.description}`.toLowerCase()
       if (!haystack.includes(queryLower)) continue
     }
-    if (!isCommandAllowed(entry.id, policy)) continue
+    if (!isCommandAllowed(toPolicyId(entry.id), policy)) continue
     matched.push(entry)
   }
 

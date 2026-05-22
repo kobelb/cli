@@ -45,7 +45,7 @@ describe('exec tool', () => {
   it('dry_run: validates and returns resolved ES request', async () => {
     setResolvedConfig(fakeConfig())
     const result = await exec({
-      id: 'stack.es.search',
+      id: 'es.search',
       input: { index: 'my-index' },
       dry_run: true,
     })
@@ -59,7 +59,7 @@ describe('exec tool', () => {
   it('dry_run: validates and returns resolved KB request', async () => {
     setResolvedConfig(fakeConfig())
     const result = await exec({
-      id: 'stack.kb.agent-builder.get-agent-builder-agents',
+      id: 'kb.agent-builder.get-agent-builder-agents',
       input: {},
       dry_run: true,
     })
@@ -86,7 +86,7 @@ describe('exec tool', () => {
   it('dry_run: path params are interpolated', async () => {
     setResolvedConfig(fakeConfig())
     const result = await exec({
-      id: 'stack.es.indices.create',
+      id: 'es.indices.create',
       input: { index: 'my-new-index' },
       dry_run: true,
     })
@@ -99,7 +99,7 @@ describe('exec tool', () => {
     setResolvedConfig(fakeConfig())
     // indices.create requires `index` path param
     const result = await exec({
-      id: 'stack.es.indices.create',
+      id: 'es.indices.create',
       input: {},
       dry_run: true,
     })
@@ -115,7 +115,7 @@ describe('exec tool', () => {
       commands: { blocked: ['stack.es.*'] },
     })
     const result = await exec({
-      id: 'stack.es.search',
+      id: 'es.search',
       input: { index: 'test' },
       dry_run: true,
     })
@@ -124,10 +124,35 @@ describe('exec tool', () => {
     assert.equal(err.code, 'command_blocked')
   })
 
+  it('command_blocked: stack.es.* policy blocks unprefixed es.* MCP IDs (policy mapping regression)', async () => {
+    // Regression: policy entries use stack.es.* but MCP IDs are now es.*
+    // toPolicyId must bridge the gap so the block is still enforced
+    setResolvedConfig({
+      ...fakeConfig(),
+      commands: { blocked: ['stack.es.ml.*'] },
+    })
+    const blockedResult = await exec({
+      id: 'es.ml.get-records',
+      input: {},
+      dry_run: true,
+    })
+    assert.ok('error' in blockedResult, 'es.ml.get-records should be blocked')
+    assert.equal((blockedResult as ExecError).error.code, 'command_blocked')
+
+    // Non-ML ES commands should still pass through
+    const allowedResult = await exec({
+      id: 'es.search',
+      input: { index: 'test' },
+      dry_run: true,
+    })
+    assert.ok(!('error' in allowedResult) || (allowedResult as ExecError).error.code !== 'command_blocked',
+      'es.search should not be blocked by stack.es.ml.*')
+  })
+
   it('dry_run: bulk request uses ndjson-style body structure', async () => {
     setResolvedConfig(fakeConfig())
     const result = await exec({
-      id: 'stack.es.bulk',
+      id: 'es.bulk',
       input: { operations: [{ index: { _index: 'test' } }, { field1: 'value1' }] },
       dry_run: true,
     })
@@ -141,7 +166,7 @@ describe('exec tool', () => {
   it('dry_run: ES query in body is passed through', async () => {
     setResolvedConfig(fakeConfig())
     const result = await exec({
-      id: 'stack.es.search',
+      id: 'es.search',
       input: {
         index: 'logs-*',
         query: { match_all: {} },
@@ -157,7 +182,7 @@ describe('exec tool', () => {
   it('returns config_error when context override fails to load', async () => {
     // Passing a nonexistent config file forces loadConfig to fail
     const result = await exec({
-      id: 'stack.es.search',
+      id: 'es.search',
       input: {},
       dry_run: true,
       context: 'nonexistent-context-name',
@@ -173,7 +198,7 @@ describe('exec dispatch (with stub handlers)', () => {
   })
 
   it('dispatch ES handler: calls handler and returns result', async () => {
-    const entry = findEntry('stack.es.search')!
+    const entry = findEntry('es.search')!
     assert.ok(entry != null)
     const parsed: ParsedResult = { options: {}, input: { index: 'test' } }
     const def = { name: 'search', description: 'Search', method: 'GET' as const, path: '/_search' }
@@ -187,7 +212,7 @@ describe('exec dispatch (with stub handlers)', () => {
   })
 
   it('dispatch KB handler: calls handler and returns result', async () => {
-    const entry = findEntry('stack.kb.agent-builder.get-agent-builder-agents')!
+    const entry = findEntry('kb.agent-builder.get-agent-builder-agents')!
     assert.ok(entry != null)
     const parsed: ParsedResult = { options: {}, input: {} }
     const def = { name: 'get-agent-builder-agents', namespace: 'agent-builder', description: '', method: 'GET' as const, path: '/api/agent_builder/agents' }

@@ -5,7 +5,7 @@
 
 import { describe, it, before } from 'node:test'
 import assert from 'node:assert/strict'
-import { getRegistry, findEntry } from '../../src/mcp/registry.ts'
+import { getRegistry, findEntry, toPolicyId } from '../../src/mcp/registry.ts'
 import type { RegistryEntry } from '../../src/mcp/registry.ts'
 
 describe('MCP registry', () => {
@@ -36,19 +36,19 @@ describe('MCP registry', () => {
     }
   })
 
-  it('ES entries have stack.es. prefix', () => {
+  it('ES entries have es. prefix', () => {
     const esEntries = registry.filter(e => e.surface === 'es')
     assert.ok(esEntries.length > 400, `expected >400 ES entries, got ${esEntries.length}`)
     for (const e of esEntries) {
-      assert.ok(e.id.startsWith('stack.es.'), `ES entry has wrong prefix: ${e.id}`)
+      assert.ok(e.id.startsWith('es.'), `ES entry has wrong prefix: ${e.id}`)
     }
   })
 
-  it('Kibana entries have stack.kb. prefix', () => {
+  it('Kibana entries have kb. prefix', () => {
     const kbEntries = registry.filter(e => e.surface === 'kb')
     assert.ok(kbEntries.length > 400, `expected >400 KB entries, got ${kbEntries.length}`)
     for (const e of kbEntries) {
-      assert.ok(e.id.startsWith('stack.kb.'), `KB entry has wrong prefix: ${e.id}`)
+      assert.ok(e.id.startsWith('kb.'), `KB entry has wrong prefix: ${e.id}`)
     }
   })
 
@@ -72,16 +72,16 @@ describe('MCP registry', () => {
   })
 
   it('ES search is accessible', () => {
-    const entry = findEntry('stack.es.search')
-    assert.ok(entry != null, 'stack.es.search not found')
+    const entry = findEntry('es.search')
+    assert.ok(entry != null, 'es.search not found')
     assert.equal(entry.surface, 'es')
     assert.equal(entry.namespace, null)
     assert.ok(entry.method === 'GET' || entry.method === 'POST')
   })
 
   it('ES indices create is accessible', () => {
-    const entry = findEntry('stack.es.indices.create')
-    assert.ok(entry != null, 'stack.es.indices.create not found')
+    const entry = findEntry('es.indices.create')
+    assert.ok(entry != null, 'es.indices.create not found')
     assert.equal(entry.surface, 'es')
     assert.equal(entry.namespace, 'indices')
   })
@@ -104,8 +104,8 @@ describe('MCP registry', () => {
   })
 
   it('Kibana agent-builder entries are accessible', () => {
-    const entry = findEntry('stack.kb.agent-builder.get-agent-builder-agents')
-    assert.ok(entry != null, 'stack.kb.agent-builder.get-agent-builder-agents not found')
+    const entry = findEntry('kb.agent-builder.get-agent-builder-agents')
+    assert.ok(entry != null, 'kb.agent-builder.get-agent-builder-agents not found')
     assert.equal(entry.surface, 'kb')
     assert.equal(entry.namespace, 'agent-builder')
   })
@@ -114,5 +114,20 @@ describe('MCP registry', () => {
     const r1 = getRegistry()
     const r2 = getRegistry()
     assert.equal(r1, r2)
+  })
+
+  describe('toPolicyId', () => {
+    it('maps es.* to stack.es.*', () => {
+      assert.equal(toPolicyId('es.search'), 'stack.es.search')
+      assert.equal(toPolicyId('es.indices.create'), 'stack.es.indices.create')
+    })
+
+    it('maps kb.* to stack.kb.*', () => {
+      assert.equal(toPolicyId('kb.data-views.list'), 'stack.kb.data-views.list')
+    })
+
+    it('passes cloud.* through unchanged', () => {
+      assert.equal(toPolicyId('cloud.trust.get-current-account'), 'cloud.trust.get-current-account')
+    })
   })
 })

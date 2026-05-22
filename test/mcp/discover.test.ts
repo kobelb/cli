@@ -37,7 +37,7 @@ describe('discover tool', () => {
     assert.ok(result.results.length > 0)
     for (const r of result.results) {
       assert.equal(r.surface, 'es')
-      assert.ok(r.id.startsWith('stack.es.'))
+      assert.ok(r.id.startsWith('es.'))
     }
   })
 
@@ -46,7 +46,7 @@ describe('discover tool', () => {
     assert.ok(result.results.length > 0)
     for (const r of result.results) {
       assert.equal(r.surface, 'kb')
-      assert.ok(r.id.startsWith('stack.kb.'))
+      assert.ok(r.id.startsWith('kb.'))
     }
   })
 
@@ -106,12 +106,13 @@ describe('discover tool', () => {
   })
 
   it('applies command policy: allowed list restricts to subset', () => {
+    // Policy entries still use the stack.es.* form (CLI dot-path); returned IDs are unprefixed
     const result = discover(
       { surface: 'es', limit: 200 },
       { allowed: ['stack.es.search'] }
     )
     assert.equal(result.total, 1)
-    assert.equal(result.results[0]!.id, 'stack.es.search')
+    assert.equal(result.results[0]!.id, 'es.search')
   })
 
   it('combined surface + query filters', () => {

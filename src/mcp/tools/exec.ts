@@ -15,7 +15,7 @@
  * of executing it — useful for agents to inspect what would be sent.
  */
 
-import { findEntry } from '../registry.ts'
+import { findEntry, toPolicyId } from '../registry.ts'
 import type { RegistryEntry } from '../registry.ts'
 import { loadDefinitionForEntry, getSchemaArgsForEntry } from './man.ts'
 import { validateInput } from '../../lib/validate-input.ts'
@@ -38,7 +38,7 @@ import { getSchemaForEntry } from './exec-schema.ts'
 
 /** Input for the `exec` tool. */
 export interface ExecInput {
-  /** Dot-path ID as returned by `discover` (e.g. `stack.es.indices.create`). */
+  /** Dot-path ID as returned by `discover` (e.g. `es.indices.create`). */
   id: string
   /** Command input using the schema keys returned by `man` (snake_case). */
   input?: Record<string, unknown>
@@ -124,7 +124,7 @@ export async function exec (
   const resolvedConfig = getResolvedConfig()
 
   // Enforce command policy
-  if (resolvedConfig?.commands != null && !isCommandAllowed(id, resolvedConfig.commands)) {
+  if (resolvedConfig?.commands != null && !isCommandAllowed(toPolicyId(id), resolvedConfig.commands)) {
     return {
       error: {
         code: 'command_blocked',

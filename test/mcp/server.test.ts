@@ -141,14 +141,14 @@ describe('MCP server protocol smoke test', () => {
     assert.ok(Array.isArray(data.results) && data.results.length <= 5, 'expected ≤5 results')
   })
 
-  it('tools/call man returns schema for stack.es.search', async () => {
+  it('tools/call man returns schema for es.search', async () => {
     const response = await server.send({
       jsonrpc: '2.0',
       id: 4,
       method: 'tools/call',
       params: {
         name: 'man',
-        arguments: { id: 'stack.es.search' },
+        arguments: { id: 'es.search' },
       },
     })
     assert.ok(response.result != null, `expected result, got: ${JSON.stringify(response)}`)
@@ -156,7 +156,7 @@ describe('MCP server protocol smoke test', () => {
     const content = result.content as Array<{ type: string; text: string }>
     assert.equal(content[0]!.type, 'text')
     const data = JSON.parse(content[0]!.text) as Record<string, unknown>
-    assert.equal(data.id, 'stack.es.search')
+    assert.equal(data.id, 'es.search')
     assert.equal(data.surface, 'es')
     assert.ok(data.input_schema != null, 'expected input_schema')
     // found_in must not appear in schema
@@ -190,7 +190,7 @@ describe('MCP server protocol smoke test', () => {
       params: {
         name: 'exec',
         arguments: {
-          id: 'stack.es.search',
+          id: 'es.search',
           input: { index: 'test-index' },
           dry_run: true,
         },

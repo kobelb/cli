@@ -6,9 +6,14 @@
 /**
  * Unified dot-path inventory for all Cloud, Elasticsearch, and Kibana HTTP APIs.
  *
- * The registry is built from the same lightweight manifests and definition arrays
- * the CLI uses, so MCP tool IDs exactly match CLI dot-paths (e.g. the CLI command
- * `elastic stack es indices create` has MCP ID `stack.es.indices.create`).
+ * MCP tool IDs are surface-prefixed without the CLI's `stack.` group prefix:
+ * - ES:    `es.<namespace>.<name>`   (e.g. `es.indices.create`)
+ * - KB:    `kb.<namespace>.<name>`   (e.g. `kb.data-views.list`)
+ * - Cloud: `cloud.<namespace>.<name>` (e.g. `cloud.hosted.deployments.list`)
+ *
+ * Command-policy entries in the config file (`commands.allowed` / `commands.blocked`)
+ * still use the CLI dot-path form with the `stack.` prefix (e.g. `stack.es.*`).
+ * Use `toPolicyId()` to map an MCP ID to its policy-check form.
  *
  * Three surfaces:
  * - `es`    — Elasticsearch (from `apiManifest`, 560+ commands)
@@ -35,7 +40,11 @@ export type Surface = 'es' | 'kb' | 'cloud'
  * Carries enough information to serve `discover` without loading full definitions.
  */
 export interface RegistryEntry {
-  /** Stable dot-path identifier matching the CLI command path (e.g. `stack.es.indices.create`). */
+  /**
+   * Stable dot-path identifier exposed to MCP clients (e.g. `es.indices.create`).
+   * Note: this omits the CLI's `stack.` group prefix. Use `toPolicyId(id)` when
+   * passing to `isCommandAllowed` so config policy entries (`stack.es.*`) still match.
+   */
   id: string
   /** API surface. */
   surface: Surface
@@ -74,7 +83,7 @@ function buildRegistry (): RegistryEntry[] {
   // --- Elasticsearch ---
   for (const meta of apiManifest) {
     const ns = meta.namespace ?? null
-    const id = ns != null ? `stack.es.${ns}.${meta.name}` : `stack.es.${meta.name}`
+    const id = ns != null ? `es.${ns}.${meta.name}` : `es.${meta.name}`
     const entry: RegistryEntry = {
       id,
       surface: 'es',
@@ -92,7 +101,7 @@ function buildRegistry (): RegistryEntry[] {
 
   // --- Kibana ---
   for (const meta of kbApiManifest) {
-    const id = `stack.kb.${meta.namespace}.${meta.name}`
+    const id = `kb.${meta.namespace}.${meta.name}`
     entries.push({
       id,
       surface: 'kb',
@@ -129,6 +138,21 @@ function buildRegistry (): RegistryEntry[] {
   }
 
   return entries
+}
+
+/**
+ * Maps a public MCP tool ID to the dot-path expected by `isCommandAllowed`.
+ *
+ * MCP tool IDs omit the CLI's `stack.` group prefix (`es.*`, `kb.*`).
+ * The CLI's command-policy system still uses `stack.es.*` / `stack.kb.*`, so
+ * this function re-adds the prefix before any policy check. Cloud IDs are
+ * already unprefixed and pass through unchanged.
+ */
+export function toPolicyId (mcpId: string): string {
+  if (mcpId.startsWith('es.') || mcpId.startsWith('kb.')) {
+    return `stack.${mcpId}`
+  }
+  return mcpId
 }
 
 let _registry: RegistryEntry[] | undefined

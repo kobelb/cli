@@ -16,10 +16,10 @@ describe('man tool', () => {
   })
 
   it('returns schema for ES search', async () => {
-    const result = await man({ id: 'stack.es.search' })
+    const result = await man({ id: 'es.search' })
     assert.ok(!('error' in result), `unexpected error: ${JSON.stringify(result)}`)
     const r = result as ManResponse
-    assert.equal(r.id, 'stack.es.search')
+    assert.equal(r.id, 'es.search')
     assert.equal(r.surface, 'es')
     assert.ok(r.method === 'GET' || r.method === 'POST')
     assert.ok(r.input_schema != null)
@@ -29,22 +29,22 @@ describe('man tool', () => {
   })
 
   it('does not contain found_in in schema', async () => {
-    const result = await man({ id: 'stack.es.search' })
+    const result = await man({ id: 'es.search' })
     assert.ok(!('error' in result))
     const schemaStr = JSON.stringify((result as ManResponse).input_schema)
     assert.ok(!schemaStr.includes('"found_in"'), 'schema should not contain found_in')
   })
 
   it('returns schema for ES indices create', async () => {
-    const result = await man({ id: 'stack.es.indices.create' })
+    const result = await man({ id: 'es.indices.create' })
     assert.ok(!('error' in result), `unexpected error: ${JSON.stringify(result)}`)
     const r = result as ManResponse
     assert.equal(r.surface, 'es')
-    assert.equal(r.id, 'stack.es.indices.create')
+    assert.equal(r.id, 'es.indices.create')
   })
 
   it('returns schema for KB command', async () => {
-    const result = await man({ id: 'stack.kb.agent-builder.get-agent-builder-agents' })
+    const result = await man({ id: 'kb.agent-builder.get-agent-builder-agents' })
     assert.ok(!('error' in result), `unexpected error: ${JSON.stringify(result)}`)
     const r = result as ManResponse
     assert.equal(r.surface, 'kb')
@@ -62,21 +62,21 @@ describe('man tool', () => {
 
   it('returns response_type=text for ES cat command', async () => {
     // cat health is a text-response command
-    const result = await man({ id: 'stack.es.cat.health' })
+    const result = await man({ id: 'es.cat.health' })
     assert.ok(!('error' in result), `unexpected error: ${JSON.stringify(result)}`)
     const r = result as ManResponse
     assert.equal(r.response_type, 'text')
   })
 
   it('returns body_format=ndjson for bulk command', async () => {
-    const result = await man({ id: 'stack.es.bulk' })
+    const result = await man({ id: 'es.bulk' })
     assert.ok(!('error' in result), `unexpected error: ${JSON.stringify(result)}`)
     const r = result as ManResponse
     assert.equal(r.body_format, 'ndjson')
   })
 
   it('schema has type=object at top level', async () => {
-    const result = await man({ id: 'stack.es.indices.create' })
+    const result = await man({ id: 'es.indices.create' })
     assert.ok(!('error' in result))
     const schema = (result as ManResponse).input_schema as Record<string, unknown>
     assert.equal(schema.type, 'object')
