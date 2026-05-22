@@ -62,6 +62,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
+    "cors": "^2.8.6",
     "csv-parse": "^6.2.1",
     "marked": "^14.1.4",
     "marked-terminal": "^7.3.0",
@@ -70,6 +71,8 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/marked-terminal": "6.1.1",
     "@types/node": "25.6.0",
     "eslint": "10.2.1",

@@ -416,6 +416,34 @@ discover → man → exec
 3. **`exec`** — run the command with input in snake_case keys, or pass `dry_run: true` to inspect the
    resolved HTTP request first.
 
+### Transport modes
+
+`elastic-mcp` supports two transports, selectable via `--transport`:
+
+| Transport | Flag | Default |
+|-----------|------|---------|
+| stdio | `--transport stdio` | Yes (no change for existing users) |
+| Streamable HTTP | `--transport http` | No |
+
+#### Streamable HTTP
+
+Start the server on a local port (default 4319):
+
+```bash
+elastic-mcp --transport http --port 4319
+```
+
+Or let the OS pick a port:
+
+```bash
+elastic-mcp --transport http --port 0
+```
+
+The server binds to `127.0.0.1` by default and applies DNS rebinding protection
+automatically. Agents on the same machine are trusted; no authentication is
+required. To bind to a different address, use `--host <address>` (a warning is
+printed when the address is not loopback).
+
 ### Cursor (`.cursor/mcp.json` or `mcp.json`)
 
 ```json
@@ -437,6 +465,18 @@ Or, once the package is installed globally:
   "mcpServers": {
     "elastic": {
       "command": "elastic-mcp"
+    }
+  }
+}
+```
+
+To use the HTTP transport instead (start `elastic-mcp --transport http` first):
+
+```json
+{
+  "mcpServers": {
+    "elastic": {
+      "url": "http://localhost:4319/mcp"
     }
   }
 }
