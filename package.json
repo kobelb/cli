@@ -4,7 +4,8 @@
   "description": "Interact with the Elastic Stack and Elastic Cloud from the command line.",
   "main": "dist/cli.js",
   "bin": {
-    "elastic": "dist/cli.js"
+    "elastic": "dist/cli.js",
+    "elastic-mcp": "dist/mcp/cli.js"
   },
   "workspaces": [
     "packages/*"
@@ -58,6 +59,7 @@
     "@elastic/config-resolver": "*",
     "@elastic/es-schemas": "*",
     "@elastic/transport": "^9.3.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
     "csv-parse": "^6.2.1",

@@ -18,6 +18,16 @@ import {
   readCredentialPolicyOptions,
 } from './credentials.ts'
 import type { JsonValue, ParsedResult } from '../factory.ts'
+import {
+  PROJECT_NAMESPACES,
+  PROMOTED_NAMESPACES,
+  CROSS_PROJECT_NAMESPACES,
+  HOSTED_NAMESPACE_RENAMES,
+  SERVERLESS_NAMESPACES,
+  simplifyProjectCommandName,
+} from './dot-path.ts'
+
+export { simplifyProjectCommandName } from './dot-path.ts'
 
 /**
  * Builds the unified flat Zod schema for a Cloud API command.
@@ -26,7 +36,7 @@ import type { JsonValue, ParsedResult } from '../factory.ts'
  * so the factory registers them as CLI flags, merges --file/stdin input, validates,
  * and delivers the whole thing to the handler as `parsed.input`.
  */
-function buildCommandSchema(def: CloudApiDefinition) {
+export function buildCommandSchema(def: CloudApiDefinition) {
   const shape: Record<string, z.ZodType> = {}
 
   for (const p of def.pathParams ?? []) {
@@ -66,78 +76,6 @@ function queryParamToZod(q: CloudQueryParam): z.ZodType {
   return q.required === true ? base : base.optional()
 }
 
-/**
- * Maps project-type namespaces from codegen to short CLI group names.
- * E.g. `elasticsearch-projects` → `search`, used to build
- * `elastic cloud serverless projects search <action>`.
- * The elasticsearch type also gets an `elasticsearch` alias.
- */
-const PROJECT_NAMESPACES: Record<string, string> = {
-  'elasticsearch-projects': 'search',
-  'observability-projects': 'observability',
-  'security-projects': 'security',
-}
-
-/**
- * Cross-cutting namespaces promoted to direct children of `cloud` because their APIs
- * apply to both Hosted deployments and Serverless projects.
- * Values are the display names shown in the CLI tree.
- */
-const PROMOTED_NAMESPACES = new Map<string, string>([
-  ['accounts',              'trust'],
-  ['authentication',        'auth'],
-  ['organizations',         'orgs'],
-  ['user-role-assignments', 'users'],
-  ['billing-costs-analysis','billing'],
-])
-
-/**
- * Serverless namespaces whose commands are merged into a single `cross-project`
- * group rather than exposed as two separate namespaces.
- */
-const CROSS_PROJECT_NAMESPACES = new Set<string>([
-  'linked-projects',
-  'linked-candidate-projects',
-])
-
-/**
- * Display name overrides for hosted namespaces.
- */
-const HOSTED_NAMESPACE_RENAMES = new Map<string, string>([
-  ['deployments-traffic-filter', 'traffic-filters'],
-])
-
-/**
- * Namespaces that belong under `cloud serverless`. Enumerated rather than derived
- * from `allServerlessApis` so callers passing synthetic definitions to
- * `registerCloudCommands` still partition deterministically.
- */
-const SERVERLESS_NAMESPACES = new Set<string>([
-  'elasticsearch-projects',
-  'observability-projects',
-  'security-projects',
-  'regions',
-  'traffic-filters',
-  'linked-projects',
-  'linked-candidate-projects',
-])
-
-/**
- * Strips the project-type identifier from a codegen command name to produce
- * a short action name for the restructured tree.
- *
- * E.g. `list-elasticsearch-projects` → `list`,
- *      `reset-elasticsearch-project-credentials` → `reset-credentials`,
- *      `get-elasticsearch-project-status` → `get-status`.
- */
-export function simplifyProjectCommandName (name: string, namespace: string): string {
-  const singular = namespace.endsWith('s') ? namespace.slice(0, -1) : namespace
-  let simplified = name.replace(`-${namespace}`, '')
-  if (simplified === name) {
-    simplified = name.replace(`-${singular}`, '')
-  }
-  return simplified || name
-}
 
 function groupByNamespace (definitions: CloudApiDefinition[]): Map<string, CloudApiDefinition[]> {
   const byNamespace = new Map<string, CloudApiDefinition[]>()

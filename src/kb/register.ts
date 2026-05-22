@@ -20,7 +20,7 @@ import { createKbHandler } from './handler.ts'
  * so the factory registers them as CLI flags, merges --file/stdin input, validates,
  * and delivers the whole thing to the handler as `parsed.input`.
  */
-function buildCommandSchema (def: KbApiDefinition): z.ZodObject<z.ZodRawShape> {
+export function buildCommandSchema (def: KbApiDefinition): z.ZodObject<z.ZodRawShape> {
   const shape: Record<string, z.ZodType> = {}
 
   for (const p of def.pathParams ?? []) {

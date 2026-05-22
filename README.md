@@ -389,3 +389,83 @@ elastic cloud serverless cross-project get-elasticsearch-project-link-candidates
 ```
 
 Run `elastic cloud serverless --help` for all available groups.
+
+## MCP server
+
+The `elastic-mcp` binary turns the CLI into a [Model Context Protocol](https://modelcontextprotocol.io/) server,
+giving AI agents structured access to all Cloud, Elasticsearch, and Kibana HTTP APIs.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `discover` | Search available commands by surface (`es`, `kb`, `cloud`), namespace, or free-text query |
+| `man` | Return the full JSON Schema and HTTP metadata for a specific command |
+| `exec` | Execute a command with validated input; supports `dry_run` mode |
+
+### Workflow
+
+Agents follow a three-step pattern:
+
+```text
+discover → man → exec
+```
+
+1. **`discover`** — find commands matching a surface/keyword (e.g. `surface: "es"`, `query: "search"`).
+2. **`man`** — fetch the schema for the chosen command ID (e.g. `id: "stack.es.search"`).
+3. **`exec`** — run the command with input in snake_case keys, or pass `dry_run: true` to inspect the
+   resolved HTTP request first.
+
+### Cursor (`.cursor/mcp.json` or `mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "elastic": {
+      "command": "node",
+      "args": ["./dist/mcp/cli.js"],
+      "cwd": "/path/to/elastic/cli"
+    }
+  }
+}
+```
+
+Or, once the package is installed globally:
+
+```json
+{
+  "mcpServers": {
+    "elastic": {
+      "command": "elastic-mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "elastic": {
+      "command": "elastic-mcp"
+    }
+  }
+}
+```
+
+Pass optional flags to restrict the context or command profile:
+
+```json
+{
+  "mcpServers": {
+    "elastic": {
+      "command": "elastic-mcp",
+      "args": ["--use-context", "staging", "--command-profile", "serverless"]
+    }
+  }
+}
+```
+
+Credentials are read from the same `~/.elasticrc.yml` config file used by the `elastic` CLI.
+See the **Configuration** section above for setup instructions.
