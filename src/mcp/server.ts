@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { discover } from './tools/discover.ts'
 import { man } from './tools/man.ts'
 import { exec } from './tools/exec.ts'
+import { cli } from './tools/cli.ts'
 import type { CommandPolicy } from '../config/types.ts'
 import { getResolvedConfig } from '../config/store.ts'
 
@@ -47,12 +48,13 @@ export function createMcpServer (): McpServer {
     {
       capabilities: { tools: {} },
       instructions: [
-        'This server exposes Elastic Cloud, Elasticsearch, and Kibana HTTP APIs through three tools.',
+        'This server exposes Elastic Cloud, Elasticsearch, and Kibana HTTP APIs through four tools.',
         'Workflow: 1) discover — search for commands by surface/namespace/keyword.',
         '2) man — fetch the JSON Schema for a specific command ID.',
-        '3) exec — invoke the command with validated input.',
-        'All API inputs use snake_case keys (as returned by man), not CLI kebab-case flags.',
-        'Use dry_run=true in exec to inspect the resolved HTTP request without executing it.',
+        '3) exec — invoke the command with a validated snake_case input object.',
+        '4) cli — invoke a command using the exact string a user would type (e.g. "elastic es info").',
+        'Use cli when you already know the command string; use discover+man+exec when you need to introspect the schema first.',
+        'Use dry_run=true in exec (or --dry-run in cli) to inspect the resolved HTTP request without executing it.',
       ].join(' '),
     },
   )
@@ -144,6 +146,36 @@ export function createMcpServer (): McpServer {
         ...(args.context != null ? { context: args.context } : {}),
       }
       const result = await exec(execInput)
+      return textResult(result)
+    },
+  )
+
+  // --- cli ---
+  server.registerTool(
+    'cli',
+    {
+      description:
+        'Execute an Elastic API command using the exact string a user would type at the terminal. ' +
+        'The command MUST start with "elastic" (e.g. "elastic es info", ' +
+        '"elastic es indices create --index foo --number-of-shards 3", ' +
+        '"elastic cloud trust get-current-account"). ' +
+        'Supported surfaces: es, kb, cloud. Aliases accepted: elasticsearch, kibana, stack es, stack kb. ' +
+        'Meta-flags --dry-run, --input-file, and --use-context are honored. ' +
+        'Returns the same envelope as exec: {result}, {dry_run, request}, or {error}.',
+      inputSchema: z.object({
+        command: z.string().min(1).describe(
+          'Full CLI invocation starting with "elastic" (e.g. "elastic es info").'
+        ),
+        context: z.string().optional().describe(
+          'Override the active context for this call (mirrors --use-context).'
+        ),
+      }),
+    },
+    async (args) => {
+      const result = await cli({
+        command: args.command,
+        ...(args.context != null ? { context: args.context } : {}),
+      })
       return textResult(result)
     },
   )

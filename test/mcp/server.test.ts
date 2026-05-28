@@ -105,7 +105,7 @@ describe('MCP server protocol smoke test', () => {
     assert.equal(serverInfo.name, 'elastic-cli')
   })
 
-  it('responds to tools/list with three tools', async () => {
+  it('responds to tools/list with four tools', async () => {
     const response = await server.send({
       jsonrpc: '2.0',
       id: 2,
@@ -116,9 +116,9 @@ describe('MCP server protocol smoke test', () => {
     const result = response.result as Record<string, unknown>
     const tools = result.tools as Array<{ name: string; description: string }>
     assert.ok(Array.isArray(tools), 'tools must be an array')
-    assert.equal(tools.length, 3, `expected 3 tools, got ${tools.length}`)
+    assert.equal(tools.length, 4, `expected 4 tools, got ${tools.length}`)
     const names = tools.map(t => t.name).sort()
-    assert.deepEqual(names, ['discover', 'exec', 'man'])
+    assert.deepEqual(names, ['cli', 'discover', 'exec', 'man'])
   })
 
   it('tools/call discover returns results', async () => {

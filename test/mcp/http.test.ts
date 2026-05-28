@@ -135,7 +135,7 @@ describe('MCP HTTP transport', () => {
     const tools = result.tools as Array<{ name: string }>
     assert.ok(Array.isArray(tools), 'expected tools array')
     const names = tools.map((t) => t.name).sort()
-    assert.deepEqual(names, ['discover', 'exec', 'man'])
+    assert.deepEqual(names, ['cli', 'discover', 'exec', 'man'])
   })
 
   it('tools/call discover returns results', async () => {
