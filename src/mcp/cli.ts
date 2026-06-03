@@ -19,13 +19,37 @@ import { loadConfig } from '../config/loader.ts'
 import { setResolvedConfig } from '../config/store.ts'
 import { BUILT_IN_PROFILES } from '../config/profiles.ts'
 import type { BuiltInProfile } from '../config/profiles.ts'
-import { createMcpServer } from './server.ts'
+import { createMcpServer, TOOL_NAMES } from './server.ts'
+import type { ToolName } from './server.ts'
 import { startMcpHttpServer } from './http.ts'
 
 const TransportSchema = z.enum(['stdio', 'http'])
 const PortSchema = z.coerce.number().int().min(0).max(65535)
+const ToolNameSchema = z.enum(TOOL_NAMES)
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1'])
+
+/**
+ * Parses the `--tools` argument value. Returns the deduplicated list of tools,
+ * or an Error explaining what was wrong with the input.
+ *
+ * Exported only for unit tests; not part of the stable public API.
+ */
+export function parseToolsArg (raw: string): readonly ToolName[] | Error {
+  const names = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+  if (names.length === 0) {
+    return new Error(`--tools must specify at least one tool name (valid: ${TOOL_NAMES.join(', ')})`)
+  }
+  const result = new Set<ToolName>()
+  for (const name of names) {
+    const parsed = ToolNameSchema.safeParse(name)
+    if (!parsed.success) {
+      return new Error(`--tools contains unknown tool "${name}" (valid: ${TOOL_NAMES.join(', ')})`)
+    }
+    result.add(parsed.data)
+  }
+  return [...result]
+}
 
 const program = new Command()
 program
@@ -40,16 +64,29 @@ program
   .option('--transport <stdio|http>', 'transport to use: "stdio" (default) or "http" (Streamable HTTP)', 'stdio')
   .option('--port <number>', 'port for the HTTP transport (default: 4319; 0 = OS-assigned)', '4319')
   .option('--host <address>', 'bind address for the HTTP transport (default: 127.0.0.1)', '127.0.0.1')
+  .option(
+    '--tools <list>',
+    `comma-separated tools to expose (default: all). Valid: ${TOOL_NAMES.join(', ')}`
+  )
   .allowUnknownOption(false)
 
 program.action(async () => {
-  const { configFile: configPath, useContext: contextName, commandProfile: profileName, transport: rawTransport, port: rawPort, host } = program.opts<{
+  const {
+    configFile: configPath,
+    useContext: contextName,
+    commandProfile: profileName,
+    transport: rawTransport,
+    port: rawPort,
+    host,
+    tools: rawTools,
+  } = program.opts<{
     configFile?: string
     useContext?: string
     commandProfile?: string
     transport: string
     port: string
     host: string
+    tools?: string
   }>()
 
   // Validate transport
@@ -68,6 +105,18 @@ program.action(async () => {
   }
   const port = portResult.data
 
+  // Validate --tools (if provided). Fail-loud on unknown tools so users
+  // notice typos instead of silently getting a partial server.
+  let tools: readonly ToolName[] | undefined
+  if (rawTools != null) {
+    const parsed = parseToolsArg(rawTools)
+    if (parsed instanceof Error) {
+      process.stderr.write(`Error: ${parsed.message}\n`)
+      process.exit(1)
+    }
+    tools = parsed
+  }
+
   const typedProfileName = profileName as BuiltInProfile | undefined
 
   const result = await loadConfig({
@@ -85,7 +134,7 @@ program.action(async () => {
   }
 
   if (transport === 'stdio') {
-    const server = createMcpServer()
+    const server = createMcpServer(tools != null ? { tools } : {})
     await server.connect(new StdioServerTransport())
   } else {
     if (!LOOPBACK_HOSTS.has(host)) {
@@ -94,7 +143,7 @@ program.action(async () => {
         'Restrict access via firewall or use --host 127.0.0.1.\n'
       )
     }
-    const running = await startMcpHttpServer({ host, port })
+    const running = await startMcpHttpServer({ host, port, ...(tools != null ? { tools } : {}) })
     process.stderr.write(`elastic-mcp listening on http://${host}:${running.port}/mcp\n`)
 
     const shutdown = (): void => {

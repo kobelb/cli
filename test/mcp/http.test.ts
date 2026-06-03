@@ -431,6 +431,34 @@ describe('MCP HTTP transport', () => {
     assert.equal(typeof body.error, 'string')
   })
 
+  it('only registers the requested tools when the tools option is provided', async () => {
+    const app = createMcpHttpApp('127.0.0.1', { tools: ['discover', 'exec'] })
+    const started = await startApp(app)
+    const filteredBase = `http://127.0.0.1:${started.port}/mcp`
+    try {
+      const initRes = await fetch(filteredBase, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'accept': 'application/json, text/event-stream' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1, method: 'initialize',
+          params: { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'test', version: '0' } },
+        }),
+      })
+      const sessionId = initRes.headers.get('mcp-session-id')
+      assert.ok(sessionId != null, 'expected session id from init')
+      await initRes.body?.cancel()
+
+      const { status, data } = await rpc(filteredBase, 'tools/list', {}, { 'mcp-session-id': sessionId })
+      assert.equal(status, 200)
+      const result = data.result as Record<string, unknown>
+      const tools = result.tools as Array<{ name: string }>
+      const names = tools.map((t) => t.name).sort()
+      assert.deepEqual(names, ['discover', 'exec'])
+    } finally {
+      await new Promise<void>((resolve) => started.server.close(() => resolve()))
+    }
+  })
+
   it('request with Host: evil.com is rejected with 403 (DNS rebinding protection)', (t, done) => {
     // fetch() forbids overriding the Host header, so we use http.request instead.
     import('node:http').then(({ request }) => {

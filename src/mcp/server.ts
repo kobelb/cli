@@ -24,6 +24,25 @@ const SERVER_VERSION = '0.1.0-alpha.1'
 // x-release-please-end
 
 /**
+ * Stable identifiers for every tool the MCP server can expose.
+ * The order here is the canonical order used in help text and error messages.
+ */
+export const TOOL_NAMES = ['discover', 'man', 'exec', 'cli'] as const
+
+/** Union of the tool names this server can register. */
+export type ToolName = (typeof TOOL_NAMES)[number]
+
+/** Options accepted by {@link createMcpServer}. */
+export interface CreateMcpServerOptions {
+  /**
+   * Optional allow-list of tool names to register. When omitted, all tools
+   * are registered. When provided, only the listed tools are wired up.
+   * Order and duplicates within the list are ignored.
+   */
+  tools?: readonly ToolName[]
+}
+
+/**
  * Converts any tool result to the MCP text-content envelope.
  * Tool callbacks must return `{ content: [{ type: 'text', text: string }] }`.
  */
@@ -41,8 +60,14 @@ function getPolicy (): CommandPolicy | undefined {
 /**
  * Creates and wires the McpServer.
  * Call `server.connect(transport)` after creating to start serving.
+ *
+ * @param options - optional configuration; pass `tools` to register a subset
+ *                  of the available tools (defaults to all four).
  */
-export function createMcpServer (): McpServer {
+export function createMcpServer (options: CreateMcpServerOptions = {}): McpServer {
+  const enabled: ReadonlySet<ToolName> =
+    options.tools != null ? new Set(options.tools) : new Set(TOOL_NAMES)
+
   const server = new McpServer(
     { name: 'elastic-cli', version: SERVER_VERSION },
     {
@@ -60,7 +85,7 @@ export function createMcpServer (): McpServer {
   )
 
   // --- discover ---
-  server.registerTool(
+  if (enabled.has('discover')) server.registerTool(
     'discover',
     {
       description:
@@ -99,7 +124,7 @@ export function createMcpServer (): McpServer {
   )
 
   // --- man ---
-  server.registerTool(
+  if (enabled.has('man')) server.registerTool(
     'man',
     {
       description:
@@ -117,7 +142,7 @@ export function createMcpServer (): McpServer {
   )
 
   // --- exec ---
-  server.registerTool(
+  if (enabled.has('exec')) server.registerTool(
     'exec',
     {
       description:
@@ -151,7 +176,7 @@ export function createMcpServer (): McpServer {
   )
 
   // --- cli ---
-  server.registerTool(
+  if (enabled.has('cli')) server.registerTool(
     'cli',
     {
       description:

@@ -38,8 +38,8 @@ interface JsonRpcResponse {
 /**
  * Spawns the MCP server and returns a helper for sending/receiving JSON-RPC messages.
  */
-function spawnServer () {
-  const child = spawn('node', [BINARY], {
+function spawnServer (args: readonly string[] = []) {
+  const child = spawn('node', [BINARY, ...args], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
 
@@ -203,5 +203,71 @@ describe('MCP server protocol smoke test', () => {
     // Missing config means missing_config error or dry_run success
     // Either is acceptable — the important thing is no crash
     assert.ok('dry_run' in data || 'error' in data, `unexpected response shape: ${JSON.stringify(data)}`)
+  })
+})
+
+describe('MCP server --tools flag', () => {
+  it('only registers the requested tools when --tools is provided', async () => {
+    const server = spawnServer(['--tools=discover,man'])
+    try {
+      const response = await server.send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      })
+      assert.ok(response.result != null, `expected result, got: ${JSON.stringify(response)}`)
+      const result = response.result as Record<string, unknown>
+      const tools = result.tools as Array<{ name: string }>
+      const names = tools.map((t) => t.name).sort()
+      assert.deepEqual(names, ['discover', 'man'])
+    } finally {
+      server.close()
+    }
+  })
+
+  it('trims whitespace and tolerates duplicates in the --tools value', async () => {
+    const server = spawnServer(['--tools= exec , exec , discover '])
+    try {
+      const response = await server.send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      })
+      const result = response.result as Record<string, unknown>
+      const tools = result.tools as Array<{ name: string }>
+      const names = tools.map((t) => t.name).sort()
+      assert.deepEqual(names, ['discover', 'exec'])
+    } finally {
+      server.close()
+    }
+  })
+
+  it('exits non-zero with an error message for an unknown tool name', async () => {
+    const child = spawn('node', [BINARY, '--tools=discover,bogus'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    let stderr = ''
+    child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    const exitCode = await new Promise<number>((resolve) => {
+      child.on('exit', (code) => resolve(code ?? -1))
+    })
+    assert.notEqual(exitCode, 0, `expected non-zero exit, got ${exitCode}`)
+    assert.match(stderr, /bogus/, `expected error to mention the unknown tool, got: ${stderr}`)
+    assert.match(stderr, /discover/, `expected error to list valid tools, got: ${stderr}`)
+  })
+
+  it('exits non-zero when --tools is empty', async () => {
+    const child = spawn('node', [BINARY, '--tools='], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    let stderr = ''
+    child.stderr!.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    const exitCode = await new Promise<number>((resolve) => {
+      child.on('exit', (code) => resolve(code ?? -1))
+    })
+    assert.notEqual(exitCode, 0, `expected non-zero exit, got ${exitCode}`)
+    assert.match(stderr, /--tools/, `expected error to mention --tools, got: ${stderr}`)
   })
 })

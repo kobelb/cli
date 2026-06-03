@@ -31,8 +31,20 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import cors from 'cors'
 import type { Application, Request, Response } from 'express'
 import { createMcpServer } from './server.ts'
+import type { ToolName } from './server.ts'
 
-export interface HttpServerOptions { host: string; port: number }
+/**
+ * Options shared by the in-process and listening flavors of the HTTP server.
+ */
+export interface McpHttpAppOptions {
+  /**
+   * Optional allow-list of tools to register on each per-session MCP server.
+   * When omitted, every tool is exposed.
+   */
+  tools?: readonly ToolName[]
+}
+
+export interface HttpServerOptions extends McpHttpAppOptions { host: string; port: number }
 export interface RunningHttpServer { server: Server; port: number; close: () => Promise<void> }
 
 function sendError (res: Response, status: number, code: number, message: string): void {
@@ -44,7 +56,12 @@ function sessionHeader (req: Request): string | undefined {
   return typeof v === 'string' ? v : undefined
 }
 
-async function handlePost (req: Request, res: Response, sessions: Map<string, StreamableHTTPServerTransport>): Promise<void> {
+async function handlePost (
+  req: Request,
+  res: Response,
+  sessions: Map<string, StreamableHTTPServerTransport>,
+  serverOptions: McpHttpAppOptions,
+): Promise<void> {
   try {
     const sessionId = sessionHeader(req)
     if (sessionId != null) {
@@ -62,7 +79,7 @@ async function handlePost (req: Request, res: Response, sessions: Map<string, St
       onsessioninitialized: (id) => { sessions.set(id, transport) },
     })
     transport.onclose = () => { if (transport.sessionId != null) sessions.delete(transport.sessionId) }
-    const mcpServer = createMcpServer()
+    const mcpServer = createMcpServer(serverOptions.tools != null ? { tools: serverOptions.tools } : {})
     // Cast needed: SDK's optional callback properties lack `| undefined`, conflicting with exactOptionalPropertyTypes.
     await mcpServer.connect(transport as Parameters<typeof mcpServer.connect>[0])
     await transport.handleRequest(req, res, req.body as unknown)
@@ -88,7 +105,7 @@ async function handleGetOrDelete (req: Request, res: Response, sessions: Map<str
   /* node:coverage enable */
 }
 
-export function createMcpHttpApp (host: string): Application {
+export function createMcpHttpApp (host: string, opts: McpHttpAppOptions = {}): Application {
   const app = createMcpExpressApp({ host })
   // Browser-based MCP clients (Inspector, playgrounds) send a CORS preflight
   // before every request and need `mcp-session-id` exposed to JS. Without
@@ -114,7 +131,7 @@ export function createMcpHttpApp (host: string): Application {
     })
   }
   const sessions = new Map<string, StreamableHTTPServerTransport>()
-  app.post('/mcp', (req, res) => { void handlePost(req, res, sessions) })
+  app.post('/mcp', (req, res) => { void handlePost(req, res, sessions, opts) })
   app.get('/mcp', (req, res) => { void handleGetOrDelete(req, res, sessions) })
   app.delete('/mcp', (req, res) => { void handleGetOrDelete(req, res, sessions) })
   return app
@@ -122,7 +139,7 @@ export function createMcpHttpApp (host: string): Application {
 
 export function startMcpHttpServer (opts: HttpServerOptions): Promise<RunningHttpServer> {
   return new Promise((resolve, reject) => {
-    const app = createMcpHttpApp(opts.host)
+    const app = createMcpHttpApp(opts.host, opts.tools != null ? { tools: opts.tools } : {})
     const server = app.listen(opts.port, opts.host, () => {
       const addr = server.address()
       if (addr == null || typeof addr === 'string') { reject(new Error('Unexpected server address')); return }
